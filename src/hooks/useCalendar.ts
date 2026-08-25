@@ -30,11 +30,16 @@ function expandRecurring(event: CalendarEvent, rangeStart: Date, rangeEnd: Date)
 
   while (current <= rangeEnd && count < MAX) {
     if (current >= rangeStart) {
+      // Store occurrence datetimes as LOCAL naive strings (no 'Z'/timezone designator),
+      // matching how the base event is stored (e.g. "2026-08-13T00:00:00").
+      // Using toISOString() would produce a UTC string that shifts the displayed
+      // date when read back in non-UTC timezones.
+      const localStr = (d: Date) => format(d, "yyyy-MM-dd'T'HH:mm:ss")
       occurrences.push({
         ...event,
         id:             `${event.id}_${format(current, 'yyyyMMdd')}`,
-        start_datetime: current.toISOString(),
-        end_datetime:   new Date(current.getTime() + duration).toISOString(),
+        start_datetime: localStr(current),
+        end_datetime:   localStr(new Date(current.getTime() + duration)),
       })
     }
 
@@ -154,9 +159,13 @@ export function useCalendar() {
       const start = parseISO(ev.start_datetime)
       const end   = parseISO(ev.end_datetime)
       if (ev.all_day) {
-        // all-day: check if day falls within the range
-        return day >= new Date(format(start, 'yyyy-MM-dd')) &&
-               day <= new Date(format(end,   'yyyy-MM-dd'))
+        // Compare as local date strings (YYYY-MM-DD) to avoid timezone issues.
+        // new Date("YYYY-MM-DD") parses date-only strings as UTC midnight, which
+        // in UTC+8 gives 08:00 local — making a midnight 'day' compare as less-than.
+        const dayStr   = format(day,   'yyyy-MM-dd')
+        const startStr = format(start, 'yyyy-MM-dd')
+        const endStr   = format(end,   'yyyy-MM-dd')
+        return dayStr >= startStr && dayStr <= endStr
       }
       return isSameDay(start, day)
     })

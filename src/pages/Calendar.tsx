@@ -45,8 +45,11 @@ export default function CalendarPage() {
   useEffect(() => { loadCategories() }, [loadCategories])
 
   async function handleSaveEvent(payload: EventInsert) {
-    if (editingEvent && !editingEvent.id.includes('_')) {
-      const { error } = await updateEvent(editingEvent.id, payload)
+    if (editingEvent) {
+      // Always derive the real DB id by stripping any recurrence occurrence suffix.
+      // Recurring occurrences have ids like "<uuid>_20260813"; the base uuid is before '_'.
+      const baseId = editingEvent.id.split('_')[0]
+      const { error } = await updateEvent(baseId, payload)
       if (error) throw new Error(error.message)
     } else {
       const { error } = await createEvent(payload)
@@ -73,7 +76,11 @@ export default function CalendarPage() {
 
   function openEditEvent(ev: CalendarEvent) {
     if (ev.source_type !== 'manual') return // don't edit system events
-    setEditingEvent(ev)
+    // For recurring occurrences, strip the "_YYYYMMDD" suffix so the form
+    // receives the base event's ID. This ensures handleSaveEvent calls
+    // updateEvent (not createEvent) for ALL event edits — recurring or not.
+    const baseId = ev.id.split('_')[0]
+    setEditingEvent({ ...ev, id: baseId })
     setDefaultDate(null)
     setFormOpen(true)
   }
