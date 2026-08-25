@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import type { CalendarEvent, CalendarCategory } from '@/types'
 import type { EventInsert } from '@/services/calendar'
 import { Alert } from '@/components/Alert'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 
 interface EventFormProps {
   initial?: CalendarEvent | null
@@ -29,19 +29,19 @@ export function EventForm({ initial, categories, defaultDate, onSave, onCancel }
   const [title,     setTitle]     = useState(initial?.title       ?? '')
   const [catId,     setCatId]     = useState(initial?.category_id ?? '')
   const [startDate, setStartDate] = useState(() => {
-    if (initial?.start_datetime) return format(new Date(initial.start_datetime), 'yyyy-MM-dd')
+    if (initial?.start_datetime) return format(parseISO(initial.start_datetime), 'yyyy-MM-dd')
     return today
   })
   const [startTime, setStartTime] = useState(() => {
-    if (initial?.start_datetime) return format(new Date(initial.start_datetime), 'HH:mm')
+    if (initial?.start_datetime) return format(parseISO(initial.start_datetime), 'HH:mm')
     return '09:00'
   })
   const [endDate,   setEndDate]   = useState(() => {
-    if (initial?.end_datetime) return format(new Date(initial.end_datetime), 'yyyy-MM-dd')
+    if (initial?.end_datetime) return format(parseISO(initial.end_datetime), 'yyyy-MM-dd')
     return today
   })
   const [endTime,   setEndTime]   = useState(() => {
-    if (initial?.end_datetime) return format(new Date(initial.end_datetime), 'HH:mm')
+    if (initial?.end_datetime) return format(parseISO(initial.end_datetime), 'HH:mm')
     return '10:00'
   })
   const [allDay,    setAllDay]    = useState(initial?.all_day     ?? false)

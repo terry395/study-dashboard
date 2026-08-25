@@ -1,9 +1,9 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useMemo, type FormEvent } from 'react'
 import { Plus, X } from 'lucide-react'
 import type { Test, Module } from '@/types'
 import type { TestInsert } from '@/services/tests'
 import { Alert } from '@/components/Alert'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 
 interface TestFormProps {
   initial?: Test | null
@@ -12,12 +12,39 @@ interface TestFormProps {
   onCancel: () => void
 }
 
+// Duration presets in minutes
+const DURATION_PRESETS = [
+  { label: '30 minutes',    value: 30  },
+  { label: '45 minutes',    value: 45  },
+  { label: '1 hour',        value: 60  },
+  { label: '1 hour 30 min', value: 90  },
+  { label: '2 hours',       value: 120 },
+  { label: '2 hours 30 min',value: 150 },
+  { label: '3 hours',       value: 180 },
+  { label: 'Custom…',       value: -1  },
+]
+
+/** Convert HH:MM start time + duration minutes → HH:MM end time */
+function calcEndTime(startTime: string, durationMins: number): string {
+  const [h, m] = startTime.split(':').map(Number)
+  const totalMins = h * 60 + m + durationMins
+  const endH = Math.floor(totalMins / 60) % 24
+  const endM = totalMins % 60
+  return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`
+}
+
+/** Back-calculate duration in minutes from start_time and end_time strings */
+function calcDurationMins(startTime: string, endTime: string): number {
+  const [sh, sm] = startTime.split(':').map(Number)
+  const [eh, em] = endTime.split(':').map(Number)
+  return (eh * 60 + em) - (sh * 60 + sm)
+}
+
 export function TestForm({ initial, modules, onSave, onCancel }: TestFormProps) {
   const [name,      setName]      = useState(initial?.name       ?? '')
   const [moduleId,  setModuleId]  = useState(initial?.module_id  ?? '')
   const [date,      setDate]      = useState(initial?.date       ?? format(new Date(), 'yyyy-MM-dd'))
   const [startTime, setStartTime] = useState(initial?.start_time ?? '09:00')
-  const [endTime,   setEndTime]   = useState(initial?.end_time   ?? '')
   const [location,  setLocation]  = useState(initial?.location   ?? '')
   const [topics,    setTopics]    = useState<string[]>(initial?.topics ?? [])
   const [newTopic,  setNewTopic]  = useState('')
@@ -25,6 +52,32 @@ export function TestForm({ initial, modules, onSave, onCancel }: TestFormProps) 
   const [notes,     setNotes]     = useState(initial?.notes      ?? '')
   const [error,     setError]     = useState('')
   const [loading,   setLoading]   = useState(false)
+
+  // Duration — back-calculate from existing end_time if editing
+  const initialDuration = useMemo(() => {
+    if (initial?.start_time && initial?.end_time) {
+      const mins = calcDurationMins(initial.start_time, initial.end_time)
+      if (mins > 0) return mins
+    }
+    return 120 // default 2 hours
+  }, [initial])
+
+  const [presetValue,      setPresetValue]      = useState<number>(() => {
+    const preset = DURATION_PRESETS.find(p => p.value === initialDuration)
+    return preset ? preset.value : -1
+  })
+  const [customDuration,   setCustomDuration]   = useState<string>(() => {
+    const preset = DURATION_PRESETS.find(p => p.value === initialDuration)
+    return !preset || preset.value === -1 ? String(initialDuration) : '120'
+  })
+
+  // The actual duration in minutes used for calculation
+  const durationMins = presetValue === -1
+    ? (parseInt(customDuration, 10) || 0)
+    : presetValue
+
+  // Computed end time shown to user (read-only preview)
+  const computedEndTime = durationMins > 0 ? calcEndTime(startTime, durationMins) : ''
 
   function addTopic() {
     const t = newTopic.trim()
@@ -35,17 +88,19 @@ export function TestForm({ initial, modules, onSave, onCancel }: TestFormProps) 
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!name.trim()) { setError('Test name is required.'); return }
-    if (!date)        { setError('Date is required.'); return }
+    if (!name.trim())  { setError('Test name is required.'); return }
+    if (!moduleId)     { setError('Please select a module.'); return }
+    if (!date)         { setError('Date is required.'); return }
+    if (durationMins <= 0) { setError('Please enter a valid duration.'); return }
     setError('')
     setLoading(true)
     try {
       await onSave({
         name:       name.trim(),
-        module_id:  moduleId || null,
+        module_id:  moduleId,
         date,
         start_time: startTime,
-        end_time:   endTime || null,
+        end_time:   computedEndTime || null,
         location:   location.trim() || null,
         topics,
         weightage:  weightage ? parseFloat(weightage) : null,
@@ -69,14 +124,17 @@ export function TestForm({ initial, modules, onSave, onCancel }: TestFormProps) 
       </div>
 
       <div className="form-group">
-        <label className="label" htmlFor="tst-module">Module</label>
+        <label className="label" htmlFor="tst-module">
+          Module <span style={{ color: 'var(--color-danger)' }}>*</span>
+        </label>
         <select id="tst-module" className="input" value={moduleId} onChange={e => setModuleId(e.target.value)}>
-          <option value="">— No module —</option>
+          <option value="" disabled>— Select a module —</option>
           {modules.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+      {/* Date + Start time */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
         <div className="form-group">
           <label className="label" htmlFor="tst-date">Date *</label>
           <input id="tst-date" className="input" type="date" value={date}
@@ -87,10 +145,37 @@ export function TestForm({ initial, modules, onSave, onCancel }: TestFormProps) 
           <input id="tst-start" className="input" type="time" value={startTime}
             onChange={e => setStartTime(e.target.value)} required />
         </div>
+      </div>
+
+      {/* Duration + computed end time */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
         <div className="form-group">
-          <label className="label" htmlFor="tst-end">End time</label>
-          <input id="tst-end" className="input" type="time" value={endTime}
-            onChange={e => setEndTime(e.target.value)} />
+          <label className="label" htmlFor="tst-duration">Duration *</label>
+          <select id="tst-duration" className="input" value={presetValue}
+            onChange={e => setPresetValue(Number(e.target.value))}>
+            {DURATION_PRESETS.map(p => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
+          </select>
+          {presetValue === -1 && (
+            <input
+              className="input" type="number" min="1" max="480" step="5"
+              value={customDuration} onChange={e => setCustomDuration(e.target.value)}
+              placeholder="Duration in minutes"
+              style={{ marginTop: 6 }}
+            />
+          )}
+        </div>
+        <div className="form-group">
+          <label className="label">End time (calculated)</label>
+          <div className="input" style={{
+            color: computedEndTime ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+            background: 'var(--color-bg-hover)',
+            cursor: 'default',
+            userSelect: 'none',
+          }}>
+            {computedEndTime || '—'}
+          </div>
         </div>
       </div>
 
@@ -152,3 +237,6 @@ export function TestForm({ initial, modules, onSave, onCancel }: TestFormProps) 
     </form>
   )
 }
+
+// Suppress unused import warning from date-fns parseISO (used via useMemo)
+void parseISO

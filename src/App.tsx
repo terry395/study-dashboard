@@ -6,6 +6,7 @@ import {
   Navigate,
 } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 import { AppLayout } from '@/layouts/AppLayout'
 import { PageLoader } from '@/components/LoadingSpinner'
 import { PageErrorBoundary } from '@/components/ErrorBoundary'
@@ -76,9 +77,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   )
 }

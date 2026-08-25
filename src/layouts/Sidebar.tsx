@@ -10,8 +10,11 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTheme } from '@/contexts/ThemeContext'
 import type { NavItem } from '@/types'
 
 const NAV_ITEMS: NavItem[] = [
@@ -33,6 +36,13 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, mobileOpen, onToggleCollapse, onCloseMobile }: SidebarProps) {
   const { user, signOut } = useAuth()
+  const { theme, toggleTheme } = useTheme()
+
+  // Display name fallback: user_metadata.name → email prefix → "User"
+  const displayName: string =
+    (user?.user_metadata?.name as string | undefined) ||
+    (user?.email ? user.email.split('@')[0] : '') ||
+    'User'
 
   return (
     <aside className={`sidebar${collapsed ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
@@ -89,7 +99,7 @@ export function Sidebar({ collapsed, mobileOpen, onToggleCollapse, onCloseMobile
         gap: 8,
         flexShrink: 0,
       }}>
-        {/* User info */}
+        {/* User info — show display name, not email */}
         {!collapsed && user && (
           <div style={{
             padding: '0.5rem 0.25rem',
@@ -97,16 +107,35 @@ export function Sidebar({ collapsed, mobileOpen, onToggleCollapse, onCloseMobile
           }}>
             <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 2 }}>Signed in as</div>
             <div style={{
-              fontSize: 12,
-              color: 'var(--color-text-secondary)',
+              fontSize: 13,
+              fontWeight: 600,
+              color: 'var(--color-text-primary)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
             }}>
-              {user.email}
+              {displayName}
             </div>
           </div>
         )}
+
+        {/* Theme toggle */}
+        <button
+          className="btn btn-ghost"
+          style={{ justifyContent: collapsed ? 'center' : 'flex-start', gap: 10, padding: '0.5rem 0.5rem' }}
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {theme === 'dark'
+            ? <Sun size={16} />
+            : <Moon size={16} />
+          }
+          {!collapsed && (
+            <span style={{ fontSize: 13 }}>
+              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            </span>
+          )}
+        </button>
 
         {/* Sign out */}
         <button

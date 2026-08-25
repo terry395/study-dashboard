@@ -37,6 +37,7 @@ export function AssignmentForm({ initial, modules, onSave, onCancel }: Assignmen
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!name.trim()) { setError('Assignment name is required.'); return }
+    if (!moduleId)    { setError('Please select a module.'); return }
     if (!dueDate)     { setError('Due date is required.'); return }
     setError('')
     setLoading(true)
@@ -72,9 +73,10 @@ export function AssignmentForm({ initial, modules, onSave, onCancel }: Assignmen
 
       {/* Module */}
       <div className="form-group">
-        <label className="label" htmlFor="asn-module">Module</label>
-        <select id="asn-module" className="input" value={moduleId} onChange={e => setModuleId(e.target.value)}>
-          <option value="">— No module —</option>
+        <label className="label" htmlFor="asn-module">Module <span style={{ color: 'var(--color-danger)' }}>*</span></label>
+        <select id="asn-module" className="input" value={moduleId} onChange={e => setModuleId(e.target.value)}
+          style={{ borderColor: !moduleId ? 'var(--color-border-light)' : undefined }}>
+          <option value="" disabled>— Select a module —</option>
           {modules.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
       </div>

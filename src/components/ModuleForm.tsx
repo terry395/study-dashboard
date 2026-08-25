@@ -19,12 +19,31 @@ export function ModuleForm({ initial, onSave, onCancel }: ModuleFormProps) {
   const [academicYear,  setAcademicYear]  = useState(initial?.academic_year  ?? '')
   const [semester,      setSemester]      = useState(initial?.semester       ?? '')
   const [colour,        setColour]        = useState(initial?.colour         ?? randomModuleColor())
+  const [hexInput,      setHexInput]      = useState(initial?.colour         ?? randomModuleColor())
+  const [hexError,      setHexError]      = useState('')
   const [error,         setError]         = useState('')
   const [loading,       setLoading]       = useState(false)
+
+  function applyHex(value: string) {
+    setHexInput(value)
+    if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+      setColour(value)
+      setHexError('')
+    } else {
+      setHexError('Enter a valid HEX colour (e.g. #3B82F6)')
+    }
+  }
+
+  function pickSwatch(c: string) {
+    setColour(c)
+    setHexInput(c)
+    setHexError('')
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!name.trim()) { setError('Module name is required.'); return }
+    if (hexError)     { setError(hexError); return }
     setError('')
     setLoading(true)
     try {
@@ -123,11 +142,12 @@ export function ModuleForm({ initial, onSave, onCancel }: ModuleFormProps) {
       {/* Colour picker */}
       <div className="form-group">
         <label className="label">Colour</label>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {/* Preset swatches */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
           {MODULE_COLORS.map(c => (
             <button
               key={c} type="button"
-              onClick={() => setColour(c)}
+              onClick={() => pickSwatch(c)}
               aria-label={`Select colour ${c}`}
               style={{
                 width: 28, height: 28,
@@ -142,6 +162,42 @@ export function ModuleForm({ initial, onSave, onCancel }: ModuleFormProps) {
               }}
             />
           ))}
+        </div>
+        {/* Custom colour row: native picker + HEX text input */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Native colour picker — synced with hex input */}
+          <input
+            type="color"
+            value={hexInput.match(/^#[0-9A-Fa-f]{6}$/) ? hexInput : '#6366f1'}
+            onChange={e => applyHex(e.target.value)}
+            style={{
+              width: 38, height: 38, padding: 2, borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--color-border-light)', cursor: 'pointer',
+              background: 'var(--color-bg-elevated)', flexShrink: 0,
+            }}
+            title="Open colour picker"
+          />
+          {/* HEX text input */}
+          <div style={{ flex: 1 }}>
+            <input
+              className="input"
+              type="text"
+              value={hexInput}
+              onChange={e => applyHex(e.target.value)}
+              placeholder="#3B82F6"
+              maxLength={7}
+              style={{ fontFamily: 'monospace', letterSpacing: '0.04em' }}
+            />
+            {hexError && (
+              <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--color-danger)' }}>{hexError}</p>
+            )}
+          </div>
+          {/* Live preview swatch */}
+          <div style={{
+            width: 32, height: 32, borderRadius: 'var(--radius-sm)',
+            background: colour, flexShrink: 0,
+            border: '1px solid var(--color-border)',
+          }} title="Selected colour" />
         </div>
       </div>
 
