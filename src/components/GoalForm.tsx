@@ -53,7 +53,9 @@ export function GoalForm({ initial, modules, weekStart, onSave, onCancel }: Goal
       {error && <Alert type="error" message={error} />}
 
       <div className="form-group">
-        <label className="label" htmlFor="goal-title">Goal *</label>
+        <label className="label" htmlFor="goal-title">
+          Goal <span className="required-star">*</span>
+        </label>
         <input id="goal-title" className="input" type="text" value={title}
           onChange={e => setTitle(e.target.value)} placeholder="Complete Chapter 4 revision" required />
       </div>

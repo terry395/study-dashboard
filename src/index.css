@@ -192,6 +192,13 @@ body {
 
 .form-group { display: flex; flex-direction: column; gap: 4px; }
 
+/* Required field asterisk — use <span className="required-star">*</span> in labels */
+.required-star {
+  color: var(--color-danger);
+  margin-left: 2px;
+  font-weight: 700;
+}
+
 /* Section headings */
 .section-title {
   font-size: 11px;

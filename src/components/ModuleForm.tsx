@@ -71,7 +71,9 @@ export function ModuleForm({ initial, onSave, onCancel }: ModuleFormProps) {
       {/* Name + Code row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem' }}>
         <div className="form-group">
-          <label className="label" htmlFor="mod-name">Module name *</label>
+          <label className="label" htmlFor="mod-name">
+            Module name <span className="required-star">*</span>
+          </label>
           <input
             id="mod-name" className="input" type="text"
             value={name} onChange={e => setName(e.target.value)}

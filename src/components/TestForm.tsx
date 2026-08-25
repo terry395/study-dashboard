@@ -118,14 +118,16 @@ export function TestForm({ initial, modules, onSave, onCancel }: TestFormProps) 
       {error && <Alert type="error" message={error} />}
 
       <div className="form-group">
-        <label className="label" htmlFor="tst-name">Test / exam name *</label>
+        <label className="label" htmlFor="tst-name">
+          Test / exam name <span className="required-star">*</span>
+        </label>
         <input id="tst-name" className="input" type="text" value={name}
           onChange={e => setName(e.target.value)} placeholder="Mid-Term Test" required />
       </div>
 
       <div className="form-group">
         <label className="label" htmlFor="tst-module">
-          Module <span style={{ color: 'var(--color-danger)' }}>*</span>
+          Module <span className="required-star">*</span>
         </label>
         <select id="tst-module" className="input" value={moduleId} onChange={e => setModuleId(e.target.value)}>
           <option value="" disabled>— Select a module —</option>
@@ -136,12 +138,16 @@ export function TestForm({ initial, modules, onSave, onCancel }: TestFormProps) 
       {/* Date + Start time */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
         <div className="form-group">
-          <label className="label" htmlFor="tst-date">Date *</label>
+          <label className="label" htmlFor="tst-date">
+            Date <span className="required-star">*</span>
+          </label>
           <input id="tst-date" className="input" type="date" value={date}
             onChange={e => setDate(e.target.value)} required />
         </div>
         <div className="form-group">
-          <label className="label" htmlFor="tst-start">Start time *</label>
+          <label className="label" htmlFor="tst-start">
+            Start time <span className="required-star">*</span>
+          </label>
           <input id="tst-start" className="input" type="time" value={startTime}
             onChange={e => setStartTime(e.target.value)} required />
         </div>
@@ -150,7 +156,9 @@ export function TestForm({ initial, modules, onSave, onCancel }: TestFormProps) 
       {/* Duration + computed end time */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
         <div className="form-group">
-          <label className="label" htmlFor="tst-duration">Duration *</label>
+          <label className="label" htmlFor="tst-duration">
+            Duration <span className="required-star">*</span>
+          </label>
           <select id="tst-duration" className="input" value={presetValue}
             onChange={e => setPresetValue(Number(e.target.value))}>
             {DURATION_PRESETS.map(p => (

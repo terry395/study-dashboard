@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { Trash2 } from 'lucide-react'
 import type { CalendarEvent, CalendarCategory } from '@/types'
 import type { EventInsert } from '@/services/calendar'
 import { Alert } from '@/components/Alert'
@@ -10,6 +11,8 @@ interface EventFormProps {
   defaultDate?: string | null
   onSave: (data: EventInsert) => Promise<void>
   onCancel: () => void
+  /** Called when the user clicks Delete — parent handles confirmation dialog */
+  onDelete?: (event: CalendarEvent) => void
 }
 
 const RECURRENCE_OPTIONS = [
@@ -23,38 +26,40 @@ const RECURRENCE_OPTIONS = [
   { value: 'FREQ=WEEKLY;BYDAY=TU,TH',      label: 'Tue / Thu' },
 ]
 
-export function EventForm({ initial, categories, defaultDate, onSave, onCancel }: EventFormProps) {
+export function EventForm({ initial, categories, defaultDate, onSave, onCancel, onDelete }: EventFormProps) {
   const today = defaultDate ?? format(new Date(), 'yyyy-MM-dd')
 
-  const [title,     setTitle]     = useState(initial?.title       ?? '')
-  const [catId,     setCatId]     = useState(initial?.category_id ?? '')
-  const [startDate, setStartDate] = useState(() => {
+  const [title,      setTitle]      = useState(initial?.title       ?? '')
+  const [catId,      setCatId]      = useState(initial?.category_id ?? '')
+  const [startDate,  setStartDate]  = useState(() => {
     if (initial?.start_datetime) return format(parseISO(initial.start_datetime), 'yyyy-MM-dd')
     return today
   })
-  const [startTime, setStartTime] = useState(() => {
+  const [startTime,  setStartTime]  = useState(() => {
     if (initial?.start_datetime) return format(parseISO(initial.start_datetime), 'HH:mm')
     return '09:00'
   })
-  const [endDate,   setEndDate]   = useState(() => {
+  const [endDate,    setEndDate]    = useState(() => {
     if (initial?.end_datetime) return format(parseISO(initial.end_datetime), 'yyyy-MM-dd')
     return today
   })
-  const [endTime,   setEndTime]   = useState(() => {
+  const [endTime,    setEndTime]    = useState(() => {
     if (initial?.end_datetime) return format(parseISO(initial.end_datetime), 'HH:mm')
     return '10:00'
   })
-  const [allDay,    setAllDay]    = useState(initial?.all_day     ?? false)
-  const [location,  setLocation]  = useState(initial?.location    ?? '')
-  const [description,setDesc]     = useState(initial?.description ?? '')
-  const [colour,    setColour]    = useState(initial?.colour      ?? '')
-  const [recurrence,setRecurrence]= useState(initial?.recurrence_rule ?? '')
-  const [error,     setError]     = useState('')
-  const [loading,   setLoading]   = useState(false)
+  const [allDay,     setAllDay]     = useState(initial?.all_day     ?? false)
+  const [location,   setLocation]   = useState(initial?.location    ?? '')
+  const [description,setDesc]       = useState(initial?.description ?? '')
+  const [colour,     setColour]     = useState(initial?.colour      ?? '')
+  const [recurrence, setRecurrence] = useState(initial?.recurrence_rule ?? '')
+  const [error,      setError]      = useState('')
+  const [loading,    setLoading]    = useState(false)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!title.trim()) { setError('Event title is required.'); return }
+    if (!startDate)    { setError('Start date is required.'); return }
+    if (!endDate)      { setError('End date is required.'); return }
     setError('')
     setLoading(true)
 
@@ -72,7 +77,7 @@ export function EventForm({ initial, categories, defaultDate, onSave, onCancel }
         start_datetime:  startDt,
         end_datetime:    endDt,
         all_day:         allDay,
-        location:        location.trim()  || null,
+        location:        location.trim()    || null,
         description:     description.trim() || null,
         colour:          colour || null,
         recurrence_rule: recurrence || null,
@@ -88,12 +93,17 @@ export function EventForm({ initial, categories, defaultDate, onSave, onCancel }
     }
   }
 
+  // Only show delete for existing manual events (not system-generated)
+  const canDelete = !!initial && !initial.id.includes('_') && initial.source_type === 'manual'
+
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {error && <Alert type="error" message={error} />}
 
       <div className="form-group">
-        <label className="label" htmlFor="evt-title">Event title *</label>
+        <label className="label" htmlFor="evt-title">
+          Event title <span className="required-star">*</span>
+        </label>
         <input id="evt-title" className="input" type="text" value={title}
           onChange={e => setTitle(e.target.value)} placeholder="Family dinner" required />
       </div>
@@ -116,7 +126,9 @@ export function EventForm({ initial, categories, defaultDate, onSave, onCancel }
       {/* Start */}
       <div style={{ display: 'grid', gridTemplateColumns: allDay ? '1fr' : '1fr 1fr', gap: '0.75rem' }}>
         <div className="form-group">
-          <label className="label" htmlFor="evt-sdate">Start date *</label>
+          <label className="label" htmlFor="evt-sdate">
+            Start date <span className="required-star">*</span>
+          </label>
           <input id="evt-sdate" className="input" type="date" value={startDate}
             onChange={e => setStartDate(e.target.value)} required />
         </div>
@@ -132,7 +144,9 @@ export function EventForm({ initial, categories, defaultDate, onSave, onCancel }
       {/* End */}
       <div style={{ display: 'grid', gridTemplateColumns: allDay ? '1fr' : '1fr 1fr', gap: '0.75rem' }}>
         <div className="form-group">
-          <label className="label" htmlFor="evt-edate">End date *</label>
+          <label className="label" htmlFor="evt-edate">
+            End date <span className="required-star">*</span>
+          </label>
           <input id="evt-edate" className="input" type="date" value={endDate}
             onChange={e => setEndDate(e.target.value)} required />
         </div>
@@ -167,11 +181,29 @@ export function EventForm({ initial, categories, defaultDate, onSave, onCancel }
           onChange={e => setDesc(e.target.value)} rows={2} style={{ resize: 'vertical' }} />
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
-        <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={loading}>Cancel</button>
-        <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? 'Saving…' : initial ? 'Save changes' : 'Create event'}
-        </button>
+      {/* Footer — Delete on the left, Cancel/Save on the right */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 4 }}>
+        {/* Delete button — only visible for existing manual events */}
+        {canDelete ? (
+          <button
+            type="button"
+            className="btn btn-danger btn-sm"
+            onClick={() => onDelete!(initial!)}
+            disabled={loading}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Trash2 size={14} /> Delete event
+          </button>
+        ) : (
+          <div />
+        )}
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={loading}>Cancel</button>
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            {loading ? 'Saving…' : initial ? 'Save changes' : 'Create event'}
+          </button>
+        </div>
       </div>
     </form>
   )

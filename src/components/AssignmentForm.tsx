@@ -66,14 +66,18 @@ export function AssignmentForm({ initial, modules, onSave, onCancel }: Assignmen
 
       {/* Name */}
       <div className="form-group">
-        <label className="label" htmlFor="asn-name">Assignment name *</label>
+        <label className="label" htmlFor="asn-name">
+          Assignment name <span className="required-star">*</span>
+        </label>
         <input id="asn-name" className="input" type="text" value={name}
           onChange={e => setName(e.target.value)} placeholder="Assignment 2" required />
       </div>
 
       {/* Module */}
       <div className="form-group">
-        <label className="label" htmlFor="asn-module">Module <span style={{ color: 'var(--color-danger)' }}>*</span></label>
+        <label className="label" htmlFor="asn-module">
+          Module <span className="required-star">*</span>
+        </label>
         <select id="asn-module" className="input" value={moduleId} onChange={e => setModuleId(e.target.value)}
           style={{ borderColor: !moduleId ? 'var(--color-border-light)' : undefined }}>
           <option value="" disabled>— Select a module —</option>
@@ -84,7 +88,9 @@ export function AssignmentForm({ initial, modules, onSave, onCancel }: Assignmen
       {/* Due date + time */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
         <div className="form-group">
-          <label className="label" htmlFor="asn-date">Due date *</label>
+          <label className="label" htmlFor="asn-date">
+            Due date <span className="required-star">*</span>
+          </label>
           <input id="asn-date" className="input" type="date" value={dueDate}
             onChange={e => setDueDate(e.target.value)} required />
         </div>

@@ -78,6 +78,15 @@ export default function CalendarPage() {
     setFormOpen(true)
   }
 
+  /** Called from EventForm's Delete button — close form, open confirm dialog */
+  function handleDeleteRequest(ev: CalendarEvent) {
+    setFormOpen(false)
+    setEditingEvent(null)
+    // Strip any recurrence suffix so we always target the base event id
+    const baseId = ev.id.split('_')[0]
+    setDeleteTarget({ ...ev, id: baseId })
+  }
+
   const VIEW_LABELS: { key: CalendarView; label: string; icon: React.ReactNode }[] = [
     { key: 'month',  label: 'Month',  icon: <Grid3x3 size={14} /> },
     { key: 'week',   label: 'Week',   icon: <Columns size={14} /> },
@@ -199,6 +208,7 @@ export default function CalendarPage() {
           defaultDate={defaultDate}
           onSave={handleSaveEvent}
           onCancel={() => { setFormOpen(false); setEditingEvent(null) }}
+          onDelete={handleDeleteRequest}
         />
       </Modal>
 

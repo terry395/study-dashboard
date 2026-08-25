@@ -106,7 +106,8 @@ function AppearanceTab() {
   return (
     <Section title="Appearance">
       <p style={{ color: 'var(--color-text-secondary)', fontSize: 13 }}>
-        The app uses a dark theme. Light mode support is planned for a future update.
+        Toggle between <strong>Light</strong> and <strong>Dark</strong> mode using the ☀ / 🌙 button in the sidebar.
+        Your preference is saved automatically and will persist after refreshing the page.
       </p>
       <div style={{
         marginTop: '1rem', padding: '1rem', background: 'var(--color-bg-elevated)',
@@ -183,7 +184,9 @@ function CategoriesTab() {
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title={editing ? 'Edit category' : 'Add category'}>
         {error && <Alert type="error" message={error} />}
         <div className="form-group" style={{ marginBottom: '1rem' }}>
-          <label className="label">Name</label>
+          <label className="label">
+            Name <span className="required-star">*</span>
+          </label>
           <input className="input" type="text" value={catName} onChange={e => setCatName(e.target.value)} placeholder="Category name" />
         </div>
         <div className="form-group" style={{ marginBottom: '1rem' }}>
