@@ -69,10 +69,13 @@ export default function Settings() {
 // ── Profile ───────────────────────────────────────────────────────────────────
 
 function ProfileTab() {
-  const { user } = useAuth()
-  const [name,    setName]    = useState(user?.user_metadata?.name ?? '')
+  const { user, displayName: currentDisplayName } = useAuth()
+  const [name,    setName]    = useState(user?.user_metadata?.name ?? currentDisplayName)
   const [saving,  setSaving]  = useState(false)
   const [success, setSuccess] = useState(false)
+
+  // Derive username from the synthetic email (e.g. terry@studydash.local → terry)
+  const username = user?.email?.replace('@studydash.local', '') ?? ''
 
   async function save() {
     setSaving(true)
@@ -84,14 +87,19 @@ function ProfileTab() {
 
   return (
     <Section title="Profile">
+      {/* Username — read-only (it's the account identifier) */}
+      <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+        <label className="label">Username</label>
+        <input className="input" type="text" value={username} disabled
+          style={{ opacity: 0.6, cursor: 'default' }} />
+        <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+          Username cannot be changed after account creation.
+        </p>
+      </div>
+      {/* Display name — editable */}
       <div className="form-group">
         <label className="label">Display name</label>
         <input className="input" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" />
-      </div>
-      <div className="form-group" style={{ marginTop: '0.75rem' }}>
-        <label className="label">Email</label>
-        <input className="input" type="email" value={user?.email ?? ''} disabled style={{ opacity: 0.6 }} />
-        <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>Email cannot be changed here.</p>
       </div>
       <button className="btn btn-primary" onClick={save} disabled={saving} style={{ marginTop: '1rem' }}>
         {success ? <><Check size={14} /> Saved!</> : saving ? 'Saving…' : 'Save changes'}

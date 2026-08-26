@@ -63,12 +63,16 @@ export function EventForm({ initial, categories, defaultDate, onSave, onCancel, 
     setError('')
     setLoading(true)
 
-    const startDt = allDay
-      ? `${startDate}T00:00:00`
-      : `${startDate}T${startTime}:00`
-    const endDt = allDay
-      ? `${endDate}T23:59:59`
-      : `${endDate}T${endTime}:00`
+    // Convert local date+time to a UTC ISO string for the TIMESTAMPTZ DB column.
+    // "new Date(`${date}T${time}:00`)" parses as LOCAL time (no 'Z'), then
+    // toISOString() converts correctly to UTC. This prevents PostgreSQL from
+    // treating a naive string like "2026-08-30T19:00:00" as UTC (which would
+    // shift a 7pm event to 3am the following day in UTC+8).
+    const toUTC = (date: string, time: string) =>
+      new Date(`${date}T${time}:00`).toISOString()
+
+    const startDt = allDay ? toUTC(startDate, '00:00') : toUTC(startDate, startTime)
+    const endDt   = allDay ? toUTC(endDate,   '23:59') : toUTC(endDate,   endTime)
 
     try {
       await onSave({

@@ -1,61 +1,40 @@
-import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { Mail } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
-import { Alert } from '@/components/Alert'
+import { Lock } from 'lucide-react'
 
+/**
+ * ForgotPassword — Not applicable with PIN-based auth.
+ * If you forget your PIN, an admin must reset it via the Supabase dashboard.
+ */
 export default function ForgotPassword() {
-  const { resetPassword } = useAuth()
-  const [email,   setEmail]   = useState('')
-  const [error,   setError]   = useState('')
-  const [success, setSuccess] = useState(false)
-  const [loading, setLoading] = useState(false)
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-    const { error } = await resetPassword(email)
-    setLoading(false)
-    if (error) { setError(error); return }
-    setSuccess(true)
-  }
-
   return (
     <div style={outerStyle}>
       <div style={cardStyle}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={logoStyle}>S</div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0.75rem 0 0.25rem' }}>Reset password</h1>
+          <div style={logoStyle}><Lock size={24} /></div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0.75rem 0 0.25rem' }}>PIN Reset</h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, margin: 0 }}>
-            Enter your email and we'll send a reset link.
+            StudyDash uses a 6-digit PIN login.
           </p>
         </div>
 
-        {error   && <Alert type="error" message={error} />}
-        {success && <Alert type="success" message="Check your email for a password reset link." />}
-
-        {!success && (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-            <div className="form-group">
-              <label className="label" htmlFor="fp-email">Email</label>
-              <input
-                id="fp-email"
-                className="input"
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-
-            <button className="btn btn-primary btn-lg" type="submit" disabled={loading} style={{ width: '100%' }}>
-              <Mail size={16} />
-              {loading ? 'Sending…' : 'Send reset link'}
-            </button>
-          </form>
-        )}
+        <div style={{
+          background: 'var(--color-bg-elevated)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md)',
+          padding: '1rem',
+          fontSize: 13,
+          color: 'var(--color-text-secondary)',
+          lineHeight: 1.6,
+        }}>
+          <p style={{ margin: '0 0 0.5rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+            Forgot your PIN?
+          </p>
+          <p style={{ margin: 0 }}>
+            To reset your PIN, go to the{' '}
+            <strong>Supabase Dashboard → Authentication → Users</strong>,
+            find your account and use "Send Reset Email" or update the password directly.
+          </p>
+        </div>
 
         <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: 13, color: 'var(--color-text-secondary)' }}>
           <Link to="/login" style={{ color: 'var(--color-accent)' }}>← Back to sign in</Link>
@@ -90,8 +69,6 @@ const logoStyle: React.CSSProperties = {
   borderRadius: 12,
   background: 'var(--color-accent)',
   color: '#fff',
-  fontSize: 24,
-  fontWeight: 700,
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',

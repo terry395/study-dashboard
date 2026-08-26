@@ -35,14 +35,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, mobileOpen, onToggleCollapse, onCloseMobile }: SidebarProps) {
-  const { user, signOut } = useAuth()
+  const { user, signOut, displayName } = useAuth()
   const { theme, toggleTheme } = useTheme()
-
-  // Display name fallback: user_metadata.name → email prefix → "User"
-  const displayName: string =
-    (user?.user_metadata?.name as string | undefined) ||
-    (user?.email ? user.email.split('@')[0] : '') ||
-    'User'
 
   return (
     <aside className={`sidebar${collapsed ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>

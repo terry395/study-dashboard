@@ -1,3 +1,12 @@
+/**
+ * AuthContext.tsx — Authentication using Supabase Auth.
+ *
+ * Strategy: Username + 6-digit PIN.
+ * Supabase Auth requires an email address, so we use a synthetic email:
+ *   {username}@studydash.local
+ * This is completely invisible to the user. Passwords are hashed by Supabase (bcrypt).
+ * All RLS policies use user_id (not email), so all existing data is unaffected.
+ */
 import React, {
   createContext,
   useContext,
@@ -8,14 +17,20 @@ import React, {
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
+/** Derive the synthetic Supabase email from a username */
+export function usernameToEmail(username: string): string {
+  return `${username.toLowerCase().trim()}@studydash.local`
+}
+
 interface AuthContextValue {
-  user:    User | null
-  session: Session | null
-  loading: boolean
-  signIn:  (email: string, password: string) => Promise<{ error: string | null }>
-  signUp:  (email: string, password: string, name: string) => Promise<{ error: string | null }>
+  user:     User | null
+  session:  Session | null
+  loading:  boolean
+  /** Display name: user_metadata.name → username → fallback */
+  displayName: string
+  signIn:  (username: string, pin: string) => Promise<{ error: string | null }>
+  signUp:  (username: string, pin: string, displayName: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
-  resetPassword: (email: string) => Promise<{ error: string | null }>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -26,14 +41,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get the initial session
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       setUser(data.session?.user ?? null)
       setLoading(false)
     })
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session)
@@ -45,31 +58,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+  /** Derive a friendly display name from the user object */
+  const displayName = (
+    (user?.user_metadata?.name as string | undefined) ||
+    (user?.email?.replace('@studydash.local', '')) ||
+    'User'
+  )
+
+  const signIn = useCallback(async (username: string, pin: string) => {
+    const email = usernameToEmail(username)
+    const { error } = await supabase.auth.signInWithPassword({ email, password: pin })
     if (error) {
-      // Make email confirmation error more helpful
-      if (error.message.toLowerCase().includes('email not confirmed')) {
-        return { error: 'Please confirm your email address first. Check your inbox for a confirmation link — or ask your Supabase project owner to disable email confirmation in Authentication → Settings.' }
+      if (error.message.toLowerCase().includes('invalid login credentials')) {
+        return { error: 'Incorrect username or PIN. Please try again.' }
       }
       return { error: error.message }
     }
     return { error: null }
   }, [])
 
-  const signUp = useCallback(async (email: string, password: string, name: string) => {
+  const signUp = useCallback(async (username: string, pin: string, displayName: string) => {
+    const email = usernameToEmail(username)
     const { data, error } = await supabase.auth.signUp({
       email,
-      password,
-      options: { data: { name } },
+      password: pin,
+      options: { data: { name: displayName || username } },
     })
-    if (error) return { error: error.message }
+    if (error) {
+      if (error.message.toLowerCase().includes('user already registered')) {
+        return { error: 'That username is already taken. Please choose another.' }
+      }
+      return { error: error.message }
+    }
 
     // Create the profile row
     if (data.user) {
       await supabase.from('profiles').upsert({
         user_id: data.user.id,
-        name,
+        name: displayName || username,
         email,
       })
     }
@@ -80,15 +106,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut()
   }, [])
 
-  const resetPassword = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
-    return { error: error?.message ?? null }
-  }, [])
-
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, loading, displayName, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   )

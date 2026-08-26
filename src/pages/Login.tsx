@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { LogIn } from 'lucide-react'
+import { LogIn, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Alert } from '@/components/Alert'
 
@@ -8,16 +8,28 @@ export default function Login() {
   const { signIn } = useAuth()
   const navigate   = useNavigate()
 
-  const [email,    setEmail]    = useState('')
-  const [password, setPassword] = useState('')
-  const [error,    setError]    = useState('')
-  const [loading,  setLoading]  = useState(false)
+  const [username,    setUsername]    = useState('')
+  const [pin,         setPin]         = useState('')
+  const [showPin,     setShowPin]     = useState(false)
+  const [error,       setError]       = useState('')
+  const [loading,     setLoading]     = useState(false)
+
+  function validatePin(value: string): string | null {
+    if (value.length !== 6)       return 'PIN must be exactly 6 digits.'
+    if (!/^\d{6}$/.test(value))   return 'PIN must contain only numbers (0–9).'
+    return null
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
+
+    if (!username.trim()) { setError('Username is required.'); return }
+    const pinErr = validatePin(pin)
+    if (pinErr) { setError(pinErr); return }
+
     setLoading(true)
-    const { error } = await signIn(email, password)
+    const { error } = await signIn(username.trim(), pin)
     setLoading(false)
     if (error) { setError(error); return }
     navigate('/')
@@ -38,38 +50,60 @@ export default function Login() {
         {error && <Alert type="error" message={error} />}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+          {/* Username */}
           <div className="form-group">
-            <label className="label" htmlFor="login-email">Email</label>
+            <label className="label" htmlFor="login-username">Username</label>
             <input
-              id="login-email"
+              id="login-username"
               className="input"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              placeholder="terrytan"
               required
-              autoComplete="email"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
             />
           </div>
 
+          {/* PIN with show/hide toggle */}
           <div className="form-group">
-            <label className="label" htmlFor="login-password">Password</label>
-            <input
-              id="login-password"
-              className="input"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              autoComplete="current-password"
-            />
-          </div>
-
-          <div style={{ textAlign: 'right' }}>
-            <Link to="/forgot-password" style={{ fontSize: 12, color: 'var(--color-accent)' }}>
-              Forgot password?
-            </Link>
+            <label className="label" htmlFor="login-pin">6-Digit PIN</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                id="login-pin"
+                className="input"
+                type={showPin ? 'text' : 'password'}
+                value={pin}
+                onChange={e => {
+                  // Only allow digits, max 6
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 6)
+                  setPin(v)
+                }}
+                placeholder="••••••"
+                required
+                autoComplete="current-password"
+                inputMode="numeric"
+                maxLength={6}
+                style={{ paddingRight: '2.5rem' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPin(v => !v)}
+                aria-label={showPin ? 'Hide PIN' : 'Show PIN'}
+                style={{
+                  position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--color-text-muted)', padding: 2, display: 'flex',
+                }}
+              >
+                {showPin ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: '2px 0 0' }}>
+              Exactly 6 numeric digits
+            </p>
           </div>
 
           <button className="btn btn-primary btn-lg" type="submit" disabled={loading} style={{ width: '100%' }}>

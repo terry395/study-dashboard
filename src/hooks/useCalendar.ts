@@ -30,16 +30,14 @@ function expandRecurring(event: CalendarEvent, rangeStart: Date, rangeEnd: Date)
 
   while (current <= rangeEnd && count < MAX) {
     if (current >= rangeStart) {
-      // Store occurrence datetimes as LOCAL naive strings (no 'Z'/timezone designator),
-      // matching how the base event is stored (e.g. "2026-08-13T00:00:00").
-      // Using toISOString() would produce a UTC string that shifts the displayed
-      // date when read back in non-UTC timezones.
-      const localStr = (d: Date) => format(d, "yyyy-MM-dd'T'HH:mm:ss")
+      // Use toISOString() (UTC) to match the base event's stored format.
+      // EventForm now stores all datetimes as UTC ISO strings (TIMESTAMPTZ),
+      // so occurrences must match for consistent parseISO behaviour.
       occurrences.push({
         ...event,
         id:             `${event.id}_${format(current, 'yyyyMMdd')}`,
-        start_datetime: localStr(current),
-        end_datetime:   localStr(new Date(current.getTime() + duration)),
+        start_datetime: current.toISOString(),
+        end_datetime:   new Date(current.getTime() + duration).toISOString(),
       })
     }
 
@@ -136,8 +134,11 @@ export function useCalendar() {
     }
 
     const { data, error } = await getEvents(
-      format(from, "yyyy-MM-dd'T'00:00:00"),
-      format(to,   "yyyy-MM-dd'T'23:59:59"),
+      // Send UTC ISO strings so Supabase's TIMESTAMPTZ column comparison is correct.
+      // A naive string like "2026-08-25T00:00:00" would be treated as UTC by PostgreSQL,
+      // potentially excluding events stored between local midnight and UTC midnight.
+      from.toISOString(),
+      to.toISOString(),
     )
     setLoading(false)
     if (error) { setError('Failed to load events.'); return }
