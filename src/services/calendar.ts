@@ -74,16 +74,47 @@ export type EventInsert = Omit<CalendarEvent, 'id' | 'user_id' | 'created_at' | 
 export type EventUpdate = Partial<EventInsert>
 
 export async function getEvents(from?: string, to?: string) {
-  let query = supabase
-    .from('calendar_events')
-    .select('*, category:calendar_categories(id, name, colour, icon)')
-    .order('start_datetime')
+  const selectClause = '*, category:calendar_categories(id, name, colour, icon)'
 
-  if (from) query = query.gte('start_datetime', from)
-  if (to)   query = query.lte('start_datetime', to)
+  // Run two queries in parallel:
+  //  1. Non-recurring events that fall within the view range.
+  //  2. ALL recurring events whose start_datetime is at or before the range end.
+  //     These are expanded client-side into occurrences; without this, an annual
+  //     event created in 2026 would never appear in a 2027 query because its
+  //     stored start_datetime is in 2026.
+  const [rangeResult, recurringResult] = await Promise.all([
+    // Non-recurring: must fall within the view window
+    (() => {
+      let q = supabase
+        .from('calendar_events')
+        .select(selectClause)
+        .is('recurrence_rule', null)
+        .order('start_datetime')
+      if (from) q = q.gte('start_datetime', from)
+      if (to)   q = q.lte('start_datetime', to)
+      return q
+    })(),
 
-  const { data, error } = await query
-  return { data: (data ?? []) as CalendarEvent[], error }
+    // Recurring: any event with a recurrence rule that started before the view ends.
+    // No lower-bound filter — the expansion loop handles range clamping.
+    (() => {
+      let q = supabase
+        .from('calendar_events')
+        .select(selectClause)
+        .not('recurrence_rule', 'is', null)
+        .order('start_datetime')
+      if (to) q = q.lte('start_datetime', to)
+      return q
+    })(),
+  ])
+
+  const error = rangeResult.error ?? recurringResult.error ?? null
+  const data  = [
+    ...(rangeResult.data  ?? []),
+    ...(recurringResult.data ?? []),
+  ]
+
+  return { data: data as CalendarEvent[], error }
 }
 
 export async function createEvent(payload: EventInsert) {

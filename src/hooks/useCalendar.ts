@@ -25,8 +25,38 @@ function expandRecurring(event: CalendarEvent, rangeStart: Date, rangeEnd: Date)
   const duration   = eventEnd.getTime() - eventStart.getTime()
 
   let current = new Date(eventStart)
+
+  // ── Fast-forward to near rangeStart ──────────────────────────────────────────
+  // For low-frequency recurrences (yearly, monthly), naively stepping one
+  // occurrence at a time from an event created years ago would burn through
+  // the MAX-iteration safety cap before ever reaching the visible range.
+  // Jump directly to the first occurrence at or after (rangeStart - 1 period).
+  if (current < rangeStart) {
+    if (rule.freq === 'YEARLY' && rule.interval > 0) {
+      const yearsNeeded = Math.max(0,
+        rangeStart.getFullYear() - current.getFullYear() - 1
+      )
+      const skip = Math.floor(yearsNeeded / rule.interval) * rule.interval
+      if (skip > 0) {
+        current = new Date(current)
+        current.setFullYear(current.getFullYear() + skip)
+      }
+    } else if (rule.freq === 'MONTHLY' && rule.interval > 0) {
+      const monthsNeeded = Math.max(0,
+        (rangeStart.getFullYear() - current.getFullYear()) * 12
+        + (rangeStart.getMonth() - current.getMonth()) - 1
+      )
+      const skip = Math.floor(monthsNeeded / rule.interval) * rule.interval
+      if (skip > 0) {
+        current = new Date(current)
+        current.setMonth(current.getMonth() + skip)
+      }
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
   let count   = 0
-  const MAX   = 365 // safety cap
+  const MAX   = 400 // safety cap (covers ~1 year of daily events)
 
   while (current <= rangeEnd && count < MAX) {
     if (current >= rangeStart) {
