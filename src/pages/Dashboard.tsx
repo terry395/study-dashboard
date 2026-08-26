@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { format, isToday } from 'date-fns'
+import { format, isToday, parseISO, addDays } from 'date-fns'
 import {
   AlertTriangle, Clock, ClipboardList,
   FlaskConical, BookOpen, Calendar, Plus,
@@ -24,6 +24,81 @@ function useClock() {
   return now
 }
 
+/**
+ * Expand any recurring events in `rawEvents` into occurrences that fall on `today`,
+ * and include non-recurring events whose start_datetime falls on `todayStr`.
+ * Mirrors the logic in useCalendar's getEventsForDay so the Dashboard stays consistent.
+ */
+function expandToday(rawEvents: CalendarEvent[], today: Date, todayStr: string): CalendarEvent[] {
+  const result: CalendarEvent[] = []
+  const startOfToday = new Date(today); startOfToday.setHours(0, 0, 0, 0)
+  const endOfToday   = new Date(today); endOfToday.setHours(23, 59, 59, 999)
+
+  for (const ev of rawEvents) {
+    if (!ev.recurrence_rule) {
+      // Non-recurring: check if it falls on today
+      const start = parseISO(ev.start_datetime)
+      const end   = parseISO(ev.end_datetime)
+      const startStr = format(start, 'yyyy-MM-dd')
+      const endStr   = format(end,   'yyyy-MM-dd')
+      if (ev.all_day) {
+        if (todayStr >= startStr && todayStr <= endStr) result.push(ev)
+      } else {
+        if (format(start, 'yyyy-MM-dd') === todayStr) result.push(ev)
+      }
+      continue
+    }
+
+    // Recurring: expand one period around today only
+    const eventStart = parseISO(ev.start_datetime)
+    const eventEnd   = parseISO(ev.end_datetime)
+    const duration   = eventEnd.getTime() - eventStart.getTime()
+
+    // Parse recurrence rule (minimal — covers DAILY/WEEKLY/MONTHLY/YEARLY)
+    const parts: Record<string, string> = {}
+    ev.recurrence_rule.split(';').forEach(p => { const [k, v] = p.split('='); parts[k] = v })
+    const freq     = parts['FREQ']     ?? ''
+    const interval = parseInt(parts['INTERVAL'] ?? '1', 10) || 1
+
+    let current = new Date(eventStart)
+
+    // Fast-forward to near today
+    if (current < startOfToday) {
+      if (freq === 'YEARLY') {
+        const skip = Math.max(0, Math.floor((today.getFullYear() - current.getFullYear() - 1) / interval) * interval)
+        if (skip > 0) current = new Date(current), current.setFullYear(current.getFullYear() + skip)
+      } else if (freq === 'MONTHLY') {
+        const monthsGap = (today.getFullYear() - current.getFullYear()) * 12 + today.getMonth() - current.getMonth() - 1
+        const skip = Math.max(0, Math.floor(monthsGap / interval) * interval)
+        if (skip > 0) current = new Date(current), current.setMonth(current.getMonth() + skip)
+      }
+    }
+
+    // Step through occurrences looking for one that hits today
+    let guard = 0
+    while (current <= endOfToday && guard < 800) {
+      const occStr = format(current, 'yyyy-MM-dd')
+      if (ev.all_day ? (todayStr >= occStr && todayStr <= format(new Date(current.getTime() + duration), 'yyyy-MM-dd')) : occStr === todayStr) {
+        result.push({
+          ...ev,
+          id: `${ev.id}_${occStr.replace(/-/g, '')}`,
+          start_datetime: current.toISOString(),
+          end_datetime:   new Date(current.getTime() + duration).toISOString(),
+        })
+        break
+      }
+      // Advance
+      if (freq === 'DAILY')        { current = addDays(current, interval) }
+      else if (freq === 'WEEKLY')  { current = addDays(current, 7 * interval) }
+      else if (freq === 'MONTHLY') { current = new Date(current); current.setMonth(current.getMonth() + interval) }
+      else if (freq === 'YEARLY')  { current = new Date(current); current.setFullYear(current.getFullYear() + interval) }
+      else break
+      guard++
+    }
+  }
+  return result
+}
+
 export default function Dashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -43,15 +118,21 @@ export default function Dashboard() {
       getTests(),
       getGoalsForWeek(toWeekStart(getCurrentWeekStart())),
       getEvents(
-        `${todayStr}T00:00:00`,
-        `${todayStr}T23:59:59`,
+        new Date(new Date().setHours(0, 0, 0, 0)).toISOString(),    // local midnight → UTC
+        new Date(new Date().setHours(23, 59, 59, 999)).toISOString(), // local end-of-day → UTC
       ),
     ])
     setLoading(false)
     setAssignments(aRes.data)
     setTests(tRes.data)
     setGoals(gRes.data)
-    setEvents(eRes.data)
+    // Expand recurring events and filter to today's occurrences only.
+    // getEvents now returns ALL recurring events (needed so future-year calendar
+    // views work), so we must expand and filter here rather than showing raw data.
+    const today = new Date()
+    const todayDateStr = format(today, 'yyyy-MM-dd')
+    const expanded = expandToday(eRes.data, today, todayDateStr)
+    setEvents(expanded)
   }, [])
 
   useEffect(() => { load() }, [load])
